@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import string
 import select, socket 
 import sys, os, time, signal, pty, termios # fcntl, array, struct
 from operator import xor
@@ -98,6 +99,7 @@ if __name__ == '__main__':
         # print(len(readResult))
         for res in readResult:
             pkg = res.recv(bufferSize)
+            # print pkg
             msgs.extend(pkg.split('\n'))
 
         for msg in msgs:
@@ -108,12 +110,22 @@ if __name__ == '__main__':
                 # write original msg
                 # fake.write(msg + '\n\r')
 
+                # Hack number 2 - Add missing field "Radio Channel Code"
+                if 0 <= msg.find('!AIVDM'):
+                    # print res
+                    msgFields = msg.split(',')
+                    msgFields.insert(4, 'A')
+                    msg = string.join(msgFields, ',')
+                    # print res
+
+                # Hack number 1 - Calculate correct checksum (without last symbol *)
                 # rewrite checksumm
                 msg1 = msg[1:msg.index('*')]
                 nmea = map(ord, msg1)
                 checksum = reduce(xor, nmea)
                 oldchksm = msg[msg.index('*'):len(msg)]
                 # if oldchksm != checksum: print "***"
-                res = msg[0]+msg1+"*"+hex(checksum)[2:4]+"\r\n"
-                # print res
-                fake.write(res)
+                msg = msg[0]+msg1+"*"+hex(checksum)[2:4]+"\r\n"
+                # print msg
+
+                fake.write(msg)
