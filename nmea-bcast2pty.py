@@ -114,5 +114,6 @@ if __name__ == '__main__':
                 checksum = reduce(xor, nmea)
                 oldchksm = msg[msg.index('*'):len(msg)]
                 # if oldchksm != checksum: print "***"
-                res = "$"+msg1+"*"+hex(checksum)+"\r\n"
+                res = msg[0]+msg1+"*"+hex(checksum)[2:4]+"\r\n"
+                # print res
                 fake.write(res)
