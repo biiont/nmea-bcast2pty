@@ -77,32 +77,42 @@ class FakePTY():
         termios.tcdrain(self.fd)
 
 if __name__ == '__main__':
-    port = 9052  # where do you expect to get a msg?
-    bufferSize = 1024 # whatever you need
+    nmeaPort = 9052  # where do you expect to get a msg?
+    aisPort = 9060  # where do you expect to get a msg?
+    # bufferSize = 1024 # whatever you need
+    bufferSize = 4096 # whatever you need
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.bind(('<broadcast>', port))
-    s.setblocking(0)
+    nmeaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    nmeaSocket.bind(('<broadcast>', nmeaPort))
+    nmeaSocket.setblocking(0)
+
+    aisSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    aisSocket.bind(('<broadcast>', aisPort))
+    aisSocket.setblocking(0)
 
     fake = FakePTY()
 
     while True:
-        result = select.select([s],[],[])
-        msg = result[0][0].recv(bufferSize) 
-        #        print msg
-        # Converts every character in the substring
-        # between '$' and the '*' (exclusive)
-        # in a sequence of integral values.
-        msg1 = msg[1:msg.index('*')]
-        nmea = map(ord, msg1)
-        
-        # Reducing with xor the sequence
-        checksum = reduce(xor, nmea)
-        
-        oldchksm = msg[msg.index('*'):len(msg)]
-        if oldchksm != checksum: print "Checksum is wrong for $"+msg1[0:msg1.index(',')]
-        
-        res = "$"+msg1+"*"+hex(checksum)+"\r\n"
-        #print msg
-        fake.write(res)
+        readResult, writeResult, errorResult = select.select([nmeaSocket, aisSocket],[],[])
+        msgs = [];
+        # print(len(readResult))
+        for res in readResult:
+            pkg = res.recv(bufferSize)
+            msgs.extend(pkg.split('\n'))
 
+        for msg in msgs:
+            msg = msg.replace('\r', '')
+            if msg:
+                # print msg
+
+                # write original msg
+                # fake.write(msg + '\n\r')
+
+                # rewrite checksumm
+                msg1 = msg[1:msg.index('*')]
+                nmea = map(ord, msg1)
+                checksum = reduce(xor, nmea)
+                oldchksm = msg[msg.index('*'):len(msg)]
+                # if oldchksm != checksum: print "***"
+                res = "$"+msg1+"*"+hex(checksum)+"\r\n"
+                fake.write(res)
