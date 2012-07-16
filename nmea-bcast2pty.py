@@ -4,6 +4,7 @@ import string
 import select, socket 
 import sys, os, time, signal, pty, termios # fcntl, array, struct
 from operator import xor
+import ConfigParser
 
 class FakePTY():
     "A FakePTY is a pty with a test log ready to be cycled to it."
@@ -34,7 +35,17 @@ class FakePTY():
         speed = baudrates[speed]	# Throw an error if the speed isn't legal
         (self.fd, self.slave_fd) = os.openpty()
         self.byname = os.ttyname(self.slave_fd)
+
         print os.ttyname(self.slave_fd), os.ttyname(self.fd)
+        
+        opencpn_conf = ConfigParser.RawConfigParser()
+        opencpn_conf.read(os.getenv('HOME') + "/.opencpn/opencpn.conf")
+        opencpn_conf.set("Settings/NMEADataSource", "Source", "Serial:AIS Port (Shared)")
+        opencpn_conf.set("Settings/AISPort", "Port", "Serial:" + os.ttyname(self.slave_fd))
+        opencpn_conf_file = open(os.getenv('HOME') + "/.opencpn/opencpn.conf", "w")
+        opencpn_conf.write(opencpn_conf_file)
+        opencpn_conf_file.close()
+        
         (iflag, oflag, cflag, lflag, ispeed, ospeed, cc) = termios.tcgetattr(self.slave_fd)
         cc[termios.VMIN] = 1
         cflag &= ~(termios.PARENB | termios.PARODD | termios.CRTSCTS)
